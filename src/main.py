@@ -1,49 +1,48 @@
-from typing import Any, Dict
+from typing import Annotated, Any, Dict
 
-from fastapi import Depends, FastAPI
+import boto3
+import httpx
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import Response
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+from types_boto3_s3 import S3Client
 
 app = FastAPI()
+
+
+class VideoContent(BaseModel):
+    body: str
+    id: str
+    sent_time: str
+    state: str
+    thumbnail: str
+    uri: str
 
 
 def get_mrss_template() -> Jinja2Templates:
     return Jinja2Templates(directory="templates")
 
 
-@app.get("/", response_class=Response)
-def read_root(templates: Jinja2Templates = Depends(get_mrss_template)):
-    """Root endpoint that returns MRSS XML feed with bogus data"""
-    # Bogus data for the template
-    mrss_data = {
-        "feed_url": "https://example.com/feed.xml",
-        "items": [
-            {
-                "title": "Breaking: Local Cat Refuses to Come Inside Despite Owner's Pleas",
-                "guid": "cat-story-001",
-                "link": "https://san.com/cat-refuses-inside",
-                "pubdate": "Wed, 23 Oct 2024 10:30:00 GMT",
-                "description": "In a stunning turn of events, Mr. Whiskers has decided that the great outdoors is far superior to his cozy indoor bed.",
-                "author": "Jane Reporter",
-            },
-            {
-                "title": "Weather Update: It's Still Weather Outside",
-                "guid": "weather-update-002",
-                "link": "https://san.com/weather-still-weather",
-                "pubdate": "Wed, 23 Oct 2024 09:15:00 GMT",
-                "description": "Meteorologists confirm that atmospheric conditions continue to exist in various forms across the region.",
-                "author": "Bob Weatherman",
-            },
-            {
-                "title": "Local Person Has Opinion About Things",
-                "guid": "opinion-story-003",
-                "link": "https://san.com/person-has-opinion",
-                "pubdate": "Wed, 23 Oct 2024 08:00:00 GMT",
-                "description": "Sources confirm that area resident has formed thoughts regarding current events and is not shy about sharing them.",
-                "author": "Mike Journalist",
-            },
-        ],
-    }
+async def get_s3_client():
+    s3_client = boto3.client("s3")
+    try:
+        yield s3_client
+    finally:
+        s3_client.close()
 
-    xml_content = templates.get_template("mrss.j2").render(**mrss_data)
-    return Response(content=xml_content, media_type="application/xml")
+
+@app.post("/")
+async def new_content_webhook(
+    content: VideoContent, s3_client: Annotated[S3Client, Depends(get_s3_client)]
+):
+    """Root endpoint that downloads video and processes content"""
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(content.uri)
+        response.raise_for_status()
+        video_data = response.content
+
+    print(f"Downloaded video: {len(video_data)} bytes")
+
+    return content

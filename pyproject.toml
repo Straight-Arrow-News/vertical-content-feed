@@ -6,8 +6,12 @@ readme = "README.md"
 requires-python = ">=3.13"
 
 dependencies = [
+    "boto3>=1.40.37",
     "fastapi[standard]>=0.117.1",
+    "httpx>=0.28.1",
     "jinja2>=3.1.6",
+    "pynamodb>=6.1.0",
+    "types-boto3[essential]>=1.40.37",
     "uvicorn>=0.37.0",
 ]
 
