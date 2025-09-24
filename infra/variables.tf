@@ -8,3 +8,9 @@ variable "s3_bucket_name" {
   default     = "videos"
 }
 
+variable "aws_region" {
+  type        = string
+  description = "AWS region"
+  default     = "us-east-1"
+}
+

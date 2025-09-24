@@ -1,4 +1,3 @@
-import json
 import os
 from datetime import datetime, timezone
 from typing import Annotated, Any, Dict
@@ -11,11 +10,11 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from types_boto3_s3 import S3Client
 
-from models.video_model import VideoModel
-
 app = FastAPI()
 
-S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "videos")
+S3_BUCKET_NAME = os.environ.get(
+    "S3_BUCKET_NAME", "videos-dd9f9a31-21eb-53a3-4f05-9cb8ba6dc067"
+)
 
 
 class VideoContent(BaseModel):
@@ -23,8 +22,9 @@ class VideoContent(BaseModel):
     id: str
     sent_time: str
     state: str
-    s3_thumbnail: str
-    s3_uri: str
+    thumbnail: str
+    uri: str
+    post_uri: str
 
 
 def get_mrss_template() -> Jinja2Templates:
@@ -45,16 +45,20 @@ async def new_content_webhook(
 ):
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(content.s3_uri)
+            response = await client.get(content.uri)
             response.raise_for_status()
             video_data = response.content
 
         print(f"Downloaded video: {len(video_data)} bytes")
 
         # Upload video to S3
-        s3_key = f"videos/{content.id}_{datetime.now(timezone.utc).isoformat()}.mp4"
+        s3_key = f"{content.id}_{datetime.now(timezone.utc).isoformat()}.mp4"
         s3_client.put_object(
-            Bucket=S3_BUCKET_NAME, Key=s3_key, Body=video_data, ContentType="video/mp4"
+            Bucket=S3_BUCKET_NAME,
+            Key=s3_key,
+            Body=video_data,
+            ContentType="video/mp4",
+            Metadata={"tiktok_uri": content.post_uri},
         )
         print(f"Uploaded video to S3: {s3_key}")
 

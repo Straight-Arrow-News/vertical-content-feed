@@ -8,6 +8,8 @@ terraform {
 }
 
 provider "aws" {
+  region = var.aws_region
+
   default_tags {
     tags = {
       environment = var.environment
@@ -15,9 +17,12 @@ provider "aws" {
   }
 }
 
+resource "random_uuid" "random_uuid" {
+}
+
 # S3 Bucket for storing videos
 resource "aws_s3_bucket" "videos" {
-  bucket = var.s3_bucket_name
+  bucket = "${var.s3_bucket_name}-${random_uuid.random_uuid.result}"
 }
 
 # S3 Bucket Public Access Block - Allow public access
@@ -38,6 +43,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "videos" {
     id     = "delete-after-30-days"
     status = "Enabled"
 
+    filter {}
+
     expiration {
       days = 30
     }
@@ -47,7 +54,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "videos" {
 # S3 Bucket Policy - Allow public read access
 resource "aws_s3_bucket_policy" "videos" {
   bucket = aws_s3_bucket.videos.id
-  
+
   depends_on = [aws_s3_bucket_public_access_block.videos]
 
   policy = jsonencode({
