@@ -14,4 +14,5 @@ class SharedPostModel(Model):
 
     id = NumberAttribute(hash_key=True)
     body = UnicodeAttribute()
-    sent_time = NumberAttribute()
+    sent_timestamp = NumberAttribute()
+    tiktok_uri = UnicodeAttribute()

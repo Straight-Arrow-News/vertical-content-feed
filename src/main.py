@@ -10,14 +10,16 @@ from types_boto3_s3 import S3Client
 
 app = FastAPI()
 
+S3_BUCKET_NAME = "videos"
+
 
 class VideoContent(BaseModel):
     body: str
     id: str
     sent_time: str
     state: str
-    thumbnail: str
-    uri: str
+    s3_thumbnail: str
+    s3_uri: str
 
 
 def get_mrss_template() -> Jinja2Templates:
