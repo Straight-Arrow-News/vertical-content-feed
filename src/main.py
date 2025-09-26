@@ -4,14 +4,14 @@ from urllib.parse import quote_plus
 
 import boto3
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import Response
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from types_boto3_s3 import S3Client
 
-from src.environment import AWS_REGION, S3_BUCKET_NAME
-from src.models.video_model import VideoModel
+from .environment import AWS_REGION, FEED_URL, S3_BUCKET_NAME, ZAPIER_SECRET_KEY
+from .models.video_model import VideoModel
 
 app = FastAPI()
 
@@ -40,8 +40,15 @@ async def get_s3_client():
 
 @app.post("/")
 async def new_content_webhook(
-    content: VideoContent, s3_client: Annotated[S3Client, Depends(get_s3_client)]
+    content: VideoContent,
+    s3_client: Annotated[S3Client, Depends(get_s3_client)],
+    x_secret_key: Annotated[str | None, Header()] = None,
 ):
+    if not ZAPIER_SECRET_KEY or x_secret_key != ZAPIER_SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+        )
+
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(content.uri)
@@ -116,7 +123,8 @@ async def new_content_webhook(
 
 @app.get("/")
 async def get_video_feed(
-    request: Request, templates: Annotated[Jinja2Templates, Depends(get_mrss_template)]
+    request: Request,
+    templates: Annotated[Jinja2Templates, Depends(get_mrss_template)],
 ):
     try:
         videos: List[VideoModel] = []
@@ -141,10 +149,8 @@ async def get_video_feed(
                 }
             )
 
-        feed_url = str(request.url)
-
         template_response = templates.TemplateResponse(
-            "mrss.j2", {"request": request, "feed_url": feed_url, "items": items}
+            "mrss.j2", {"request": request, "feed_url": FEED_URL, "items": items}
         )
 
         return Response(
