@@ -1,22 +1,19 @@
-import os
 from datetime import datetime, timezone
-from typing import Annotated, Any, Dict
+from typing import Annotated, List
+from urllib.parse import quote_plus
 
 import boto3
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import Response
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from types_boto3_s3 import S3Client
 
+from src.environment import AWS_REGION, S3_BUCKET_NAME
 from src.models.video_model import VideoModel
 
 app = FastAPI()
-
-S3_BUCKET_NAME = os.environ.get(
-    "S3_BUCKET_NAME", "videos-dd9f9a31-21eb-53a3-4f05-9cb8ba6dc067"
-)
 
 
 class VideoContent(BaseModel):
@@ -67,6 +64,9 @@ async def new_content_webhook(
             ContentType="video/mp4",
             Metadata={"tiktok_uri": content.post_uri},
         )
+        s3_uri = "https://s3.{0}.amazonaws.com/{1}/{2}".format(
+            AWS_REGION, S3_BUCKET_NAME, quote_plus(video_s3_key)
+        )
 
         print(f"Uploaded video to S3: {video_s3_key}")
 
@@ -81,9 +81,15 @@ async def new_content_webhook(
             Metadata={"tiktok_uri": content.post_uri},
         )
 
+        thumbnail_uri = "https://s3.{0}.amazonaws.com/{1}/{2}".format(
+            AWS_REGION, S3_BUCKET_NAME, quote_plus(thumbnail_s3_key)
+        )
+
         print(f"Uploaded thumbnail to S3: {thumbnail_s3_key}")
 
-        sent_time_dt = datetime.fromisoformat(content.sent_time.replace("Z", "+00:00"))
+        sent_time_dt = datetime.fromisoformat(
+            content.sent_time.replace("Z", "+00:00")
+        ).timestamp()
 
         video_item = VideoModel(
             id=content.id,
@@ -91,8 +97,9 @@ async def new_content_webhook(
             sent_time=sent_time_dt,
             state=content.state,
             tiktok_uri=content.post_uri,
-            s3_thumbnail=f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{thumbnail_s3_key}",
-            s3_uri=f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{video_s3_key}",
+            s3_thumbnail=thumbnail_uri,
+            s3_uri=s3_uri,
+            feed_type="main",
         )
         video_item.save()
         print(f"Saved video metadata to DynamoDB: {content.id}")
@@ -100,8 +107,50 @@ async def new_content_webhook(
         return Response(status_code=status.HTTP_200_OK)
 
     except httpx.HTTPError as e:
-        raise HTTPException(
-            status_code=400, detail=f"Error downloading video: {str(e)}"
+        print(e)
+        raise HTTPException(status_code=400)
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500)
+
+
+@app.get("/")
+async def get_video_feed(
+    request: Request, templates: Annotated[Jinja2Templates, Depends(get_mrss_template)]
+):
+    try:
+        videos: List[VideoModel] = []
+        for video in VideoModel.feed_timestamp_index.query(
+            "main",
+            scan_index_forward=False,
+            limit=20,
+        ):
+            videos.append(video)
+
+        items = []
+        for video in videos[:20]:
+            sent_time_dt = datetime.fromtimestamp(video.sent_time, tz=timezone.utc)
+            items.append(
+                {
+                    "body": video.body,
+                    "guid": video.id,
+                    "pubdate": sent_time_dt.strftime("%a, %d %b %Y %H:%M:%S %z"),
+                    "link": video.tiktok_uri,
+                    "video_url": video.s3_uri,
+                    "thumbnail_url": video.s3_thumbnail,
+                }
+            )
+
+        feed_url = str(request.url)
+
+        template_response = templates.TemplateResponse(
+            "mrss.j2", {"request": request, "feed_url": feed_url, "items": items}
+        )
+
+        return Response(
+            content=template_response.body,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing video: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching video feed: {str(e)}"
+        )

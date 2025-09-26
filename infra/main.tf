@@ -73,13 +73,28 @@ resource "aws_s3_bucket_policy" "videos" {
 
 # DynamoDB Table for storing video metadata
 resource "aws_dynamodb_table" "videos" {
-  name           = var.videos_table_name
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "id"
+  name         = var.videos_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
 
   attribute {
     name = "id"
     type = "S"
+  }
+  attribute {
+    name = "sent_time"
+    type = "N"
+  }
+  attribute {
+    name = "feed_type"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "FeedTypeTimestampIndex"
+    hash_key        = "feed_type"
+    range_key       = "sent_time"
+    projection_type = "ALL"
   }
 
   tags = {

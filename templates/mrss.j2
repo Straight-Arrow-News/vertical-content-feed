@@ -18,6 +18,8 @@
             <pubDate>{{ item.pubdate }}</pubDate>
             <media:title><![CDATA[{{ item.body }}]]></media:title>
             <link>{{ item.link }}</link>
+            <media:content url="{{ item.video_url }}" type="video/mp4" />
+            <media:thumbnail url="{{ item.thumbnail_url }}" />
         </item> 
         {% endfor %} 
     </channel>
