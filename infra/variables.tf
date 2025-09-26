@@ -14,3 +14,9 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "videos_table_name" {
+  type        = string
+  description = "Name of the DynamoDB table for storing video metadata"
+  default     = "videos"
+}
+

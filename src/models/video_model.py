@@ -18,5 +18,6 @@ class VideoModel(Model):
     body = UnicodeAttribute()
     sent_time = UTCDateTimeAttribute()
     state = UnicodeAttribute()
+    tiktok_uri = UnicodeAttribute()
     s3_thumbnail = UnicodeAttribute()
     s3_uri = UnicodeAttribute()

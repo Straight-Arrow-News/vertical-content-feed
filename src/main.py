@@ -10,6 +10,8 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from types_boto3_s3 import S3Client
 
+from src.models.video_model import VideoModel
+
 app = FastAPI()
 
 S3_BUCKET_NAME = os.environ.get(
@@ -49,31 +51,51 @@ async def new_content_webhook(
             response.raise_for_status()
             video_data = response.content
 
+            response = await client.get(content.thumbnail)
+            response.raise_for_status()
+            thumbnail_data = response.content
+
         print(f"Downloaded video: {len(video_data)} bytes")
 
-        # Upload video to S3
-        s3_key = f"{content.id}_{datetime.now(timezone.utc).isoformat()}.mp4"
+        video_s3_key = (
+            f"videos/{content.id}_{datetime.now(timezone.utc).isoformat()}.mp4"
+        )
         s3_client.put_object(
             Bucket=S3_BUCKET_NAME,
-            Key=s3_key,
+            Key=video_s3_key,
             Body=video_data,
             ContentType="video/mp4",
             Metadata={"tiktok_uri": content.post_uri},
         )
-        print(f"Uploaded video to S3: {s3_key}")
 
-        # # Save metadata to DynamoDB
-        # video_item = VideoModel(
-        #     id=content.id,
-        #     body=content.body,
-        #     sent_time=content.sent_time,
-        #     state=content.state,
-        #     s3_thumbnail=content.s3_thumbnail,
-        #     s3_uri=f"s3://{S3_BUCKET_NAME}/{s3_key}",
-        #     created_at=datetime.now(timezone.utc),
-        # )
-        # video_item.save()
-        # print(f"Saved video metadata to DynamoDB: {content.id}")
+        print(f"Uploaded video to S3: {video_s3_key}")
+
+        thumbnail_s3_key = (
+            f"thumb/{content.id}_{datetime.now(timezone.utc).isoformat()}.jpg"
+        )
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME,
+            Key=thumbnail_s3_key,
+            Body=thumbnail_data,
+            ContentType="image/jpeg",
+            Metadata={"tiktok_uri": content.post_uri},
+        )
+
+        print(f"Uploaded thumbnail to S3: {thumbnail_s3_key}")
+
+        sent_time_dt = datetime.fromisoformat(content.sent_time.replace("Z", "+00:00"))
+
+        video_item = VideoModel(
+            id=content.id,
+            body=content.body,
+            sent_time=sent_time_dt,
+            state=content.state,
+            tiktok_uri=content.post_uri,
+            s3_thumbnail=f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{thumbnail_s3_key}",
+            s3_uri=f"https://{S3_BUCKET_NAME}.s3.amazonaws.com/{video_s3_key}",
+        )
+        video_item.save()
+        print(f"Saved video metadata to DynamoDB: {content.id}")
 
         return Response(status_code=status.HTTP_200_OK)
 
