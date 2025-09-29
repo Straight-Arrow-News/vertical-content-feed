@@ -115,10 +115,10 @@ async def new_content_webhook(
 
     except httpx.HTTPError as e:
         print(e)
-        raise HTTPException(status_code=400)
+        raise HTTPException(status_code=400, detail=e)
     except Exception as e:
         print(e)
-        raise HTTPException(status_code=500)
+        raise HTTPException(status_code=500, detail=e)
 
 
 @app.get("/")
