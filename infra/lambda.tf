@@ -85,7 +85,7 @@ resource "aws_lambda_function" "vertical_content_feed" {
 
   # Function configuration
   timeout     = 60
-  memory_size = 512
+  memory_size = 2048
 
   # Environment variables
   environment {
