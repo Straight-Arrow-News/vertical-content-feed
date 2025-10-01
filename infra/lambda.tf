@@ -1,4 +1,3 @@
-# IAM role for Lambda execution
 resource "aws_iam_role" "san_vertical_content_feed_air" {
   name = "san_vertical_content_feed_${var.environment}_air"
 
@@ -14,13 +13,11 @@ resource "aws_iam_role" "san_vertical_content_feed_air" {
   })
 }
 
-# Attach basic Lambda execution policy
 resource "aws_iam_role_policy_attachment" "san_vertical_content_feed_airpa" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
   role       = aws_iam_role.san_vertical_content_feed_air.name
 }
 
-# Policy for DynamoDB access
 resource "aws_iam_role_policy" "san_vertical_content_airp_dynamodb" {
   name = "san_vertical_content_${var.environment}_airp_dynamodb"
   role = aws_iam_role.san_vertical_content_feed_air.id
@@ -49,7 +46,6 @@ resource "aws_iam_role_policy" "san_vertical_content_airp_dynamodb" {
   })
 }
 
-# Policy for S3 access
 resource "aws_iam_role_policy" "san_vertical_content_airp_s3" {
   name = "san_vertical_content_${var.environment}_airp_s3"
   role = aws_iam_role.san_vertical_content_feed_air.id
@@ -74,31 +70,25 @@ resource "aws_iam_role_policy" "san_vertical_content_airp_s3" {
   })
 }
 
-# Lambda function using ECR image
 resource "aws_lambda_function" "san_vertical_content_alf" {
   function_name = "san_vertical_content_${var.environment}_alf"
   role          = aws_iam_role.san_vertical_content_feed_air.arn
+  description   = "Function powering the vertical content feed from TikTok"
+  package_type  = "Image"
+  image_uri     = "${aws_ecr_repository.san_vertical_content_feed_aer.repository_url}:latest"
 
-  # Docker image configuration
-  package_type = "Image"
-  image_uri    = "${aws_ecr_repository.san_vertical_content_feed_aer.repository_url}:latest"
-
-  # Function configuration
   timeout     = 60
   memory_size = 2048
-
-  # Environment variables
   environment {
     variables = {
       REGION_AWS        = var.aws_region
       VIDEOS_TABLE_NAME = aws_dynamodb_table.san_vertical_content_feed_adt.name
       S3_BUCKET_NAME    = aws_s3_bucket.san_vertical_content_feed_asb.id
-      FEED_URL          = "https://example.com/feed.xml"
-      ZAPIER_SECRET_KEY = "replace-with-actual-secret-key"
+      FEED_URL          = var.production_feed_url
+      ZAPIER_SECRET_KEY = var.zapier_secret_key
     }
   }
 
-  # Ensure the ECR repository exists before creating the function
   depends_on = [
     aws_ecr_repository.san_vertical_content_feed_aer,
     aws_iam_role_policy_attachment.san_vertical_content_feed_airpa,
@@ -107,7 +97,6 @@ resource "aws_lambda_function" "san_vertical_content_alf" {
   ]
 }
 
-# CloudWatch Log Group for Lambda
 resource "aws_cloudwatch_log_group" "san_vertical_content_aclg" {
   name              = "/aws/lambda/${aws_lambda_function.san_vertical_content_alf.function_name}"
   retention_in_days = 14

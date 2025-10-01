@@ -21,3 +21,4 @@ node_modules
 *.tfstate*
 prod
 .envrc
+*.tfvars

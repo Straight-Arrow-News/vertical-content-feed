@@ -20,12 +20,10 @@ provider "aws" {
 resource "random_uuid" "random_uuid" {
 }
 
-# S3 Bucket for storing videos
 resource "aws_s3_bucket" "san_vertical_content_feed_asb" {
   bucket = "san-vertical-content-${var.environment}-${random_uuid.random_uuid.result}"
 }
 
-# S3 Bucket Public Access Block - Allow public access
 resource "aws_s3_bucket_public_access_block" "san_vertical_content_feed_asbpab" {
   bucket = aws_s3_bucket.san_vertical_content_feed_asb.id
 
@@ -35,7 +33,6 @@ resource "aws_s3_bucket_public_access_block" "san_vertical_content_feed_asbpab" 
   restrict_public_buckets = false
 }
 
-# S3 Bucket Lifecycle Configuration - Delete objects after 30 days
 resource "aws_s3_bucket_lifecycle_configuration" "san_vertical_content_feed_asblc" {
   bucket = aws_s3_bucket.san_vertical_content_feed_asb.id
 
@@ -51,7 +48,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "san_vertical_content_feed_asbl
   }
 }
 
-# S3 Bucket Policy - Allow public read access
 resource "aws_s3_bucket_policy" "san_vertical_content_feed_asbp" {
   bucket = aws_s3_bucket.san_vertical_content_feed_asb.id
 
@@ -71,7 +67,6 @@ resource "aws_s3_bucket_policy" "san_vertical_content_feed_asbp" {
   })
 }
 
-# DynamoDB Table for storing video metadata
 resource "aws_dynamodb_table" "san_vertical_content_feed_adt" {
   name         = "san_vertical_content_feed_${var.environment}_adt"
   billing_mode = "PAY_PER_REQUEST"
