@@ -31,7 +31,7 @@ resource "aws_apigatewayv2_stage" "san_vertical_content_feed_aas" {
 resource "aws_apigatewayv2_integration" "san_vertical_content_feed_aai" {
   api_id = aws_apigatewayv2_api.san_vertical_content_feed_aaa.id
 
-  integration_uri    = aws_lambda_function.vertical_content_feed.invoke_arn
+  integration_uri    = aws_lambda_function.san_vertical_content_alf.invoke_arn
   integration_type   = "AWS_PROXY"
   integration_method = "POST"
 }
@@ -49,10 +49,10 @@ resource "aws_cloudwatch_log_group" "san_vertical_content_feed_aclg_gateway" {
   retention_in_days = 30
 }
 
-resource "aws_lambda_permission" "san_imagetool_alp" {
+resource "aws_lambda_permission" "san_vertical_content_feed_alp" {
   statement_id  = "AllowExecutionFromAPIGateway"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.vertical_content_feed.function_name
+  function_name = aws_lambda_function.san_vertical_content_alf.function_name
   principal     = "apigateway.amazonaws.com"
 
   source_arn = "${aws_apigatewayv2_api.san_vertical_content_feed_aaa.execution_arn}/*/*"
