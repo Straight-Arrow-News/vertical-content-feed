@@ -5,4 +5,4 @@ check:
 	ruff check
 
 build:
-	docker buildx build --platform linux/amd64 --provenance=false -t san/vertical-content-feed:latest .
+	docker buildx build --platform linux/amd64 --provenance=false -t san/vertical-content-feed-prod .

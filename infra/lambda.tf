@@ -84,7 +84,7 @@ resource "aws_lambda_function" "san_vertical_content_alf" {
       REGION_AWS        = var.aws_region
       VIDEOS_TABLE_NAME = aws_dynamodb_table.san_vertical_content_feed_adt.name
       S3_BUCKET_NAME    = aws_s3_bucket.san_vertical_content_feed_asb.id
-      FEED_URL          = var.production_feed_url
+      FEED_URL          = var.feed_url
       ZAPIER_SECRET_KEY = var.zapier_secret_key
     }
   }
@@ -95,6 +95,10 @@ resource "aws_lambda_function" "san_vertical_content_alf" {
     aws_iam_role_policy.san_vertical_content_airp_dynamodb,
     aws_iam_role_policy.san_vertical_content_airp_s3
   ]
+
+  lifecycle {
+    ignore_changes = [image_uri]
+  }
 }
 
 resource "aws_cloudwatch_log_group" "san_vertical_content_aclg" {

@@ -1,6 +1,6 @@
 
 resource "aws_ecr_repository" "san_vertical_content_feed_aer" {
-  name                 = "san/vertical-content-feed"
+  name                 = "san/vertical-content-feed-${var.environment}"
   image_tag_mutability = "IMMUTABLE_WITH_EXCLUSION"
 
   image_tag_mutability_exclusion_filter {

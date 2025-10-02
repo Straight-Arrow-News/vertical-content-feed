@@ -12,13 +12,11 @@ variable "aws_region" {
   default = "us-east-1"
 }
 
-variable "production_feed_url" {
-  type    = string
-  default = "https://example.com/feed.xml"
+variable "feed_url" {
+  type = string
 }
 
 variable "zapier_secret_key" {
-  type    = string
-  default = "replace-with-actual-secret-key"
+  type = string
 }
 
