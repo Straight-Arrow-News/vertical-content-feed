@@ -34,12 +34,15 @@ resource "aws_apigatewayv2_integration" "san_vertical_content_feed_aai" {
   integration_uri    = aws_lambda_function.san_vertical_content_alf.invoke_arn
   integration_type   = "AWS_PROXY"
   integration_method = "POST"
+  request_parameters = {
+    "overwrite:path" = "/"
+  }
 }
 
-resource "aws_apigatewayv2_route" "san_vertical_content_feed_aar" {
+resource "aws_apigatewayv2_route" "san_vertical_content_feed_aar_vertical" {
   api_id = aws_apigatewayv2_api.san_vertical_content_feed_aaa.id
 
-  route_key = "$default"
+  route_key = "ANY /vertical"
   target    = "integrations/${aws_apigatewayv2_integration.san_vertical_content_feed_aai.id}"
 }
 
