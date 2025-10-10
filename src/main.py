@@ -154,6 +154,7 @@ async def get_video_feed(
         )
 
         return Response(
+            media_type="text/xml",
             content=template_response.body,
         )
     except Exception as e:
