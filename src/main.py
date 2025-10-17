@@ -1,3 +1,5 @@
+import base64
+import logging
 from datetime import datetime, timezone
 from typing import Annotated, List
 from urllib.parse import quote_plus
@@ -7,11 +9,67 @@ import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import Response
 from fastapi.templating import Jinja2Templates
+from opentelemetry import trace
+from opentelemetry._logs import set_logger_provider
+from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pydantic import BaseModel
 from types_boto3_s3 import S3Client
 
-from .environment import AWS_REGION, FEED_URL, S3_BUCKET_NAME, ZAPIER_SECRET_KEY
+from .environment import (
+    AWS_REGION,
+    FEED_URL,
+    GRAFANA_LABS_TOKEN,
+    OTEL_DEPLOYMENT_ENVIRONMENT,
+    OTEL_EXPORTER_OTLP_ENDPOINT,
+    S3_BUCKET_NAME,
+    ZAPIER_SECRET_KEY,
+)
 from .models.video_model import VideoModel
+
+resource = Resource(
+    attributes={
+        "service.name": "vertical-content-feed",
+        "service.namespace": "platform",
+        "deployment.environment": OTEL_DEPLOYMENT_ENVIRONMENT,
+    }
+)
+base64_token = base64.b64encode(f"1272998:{GRAFANA_LABS_TOKEN}".encode()).decode()
+
+provider = TracerProvider(resource=resource)
+processor = BatchSpanProcessor(
+    OTLPSpanExporter(
+        endpoint=f"{OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces",
+        headers={"Authorization": f"Basic {base64_token}"},
+    )
+)
+provider.add_span_processor(processor)
+trace.set_tracer_provider(provider)
+
+logger_provider = LoggerProvider(resource=resource)
+set_logger_provider(logger_provider)
+
+log_exporter = OTLPLogExporter(
+    endpoint=f"{OTEL_EXPORTER_OTLP_ENDPOINT}/v1/logs",
+    headers={"Authorization": f"Basic {base64_token}"},
+)
+logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
+
+otel_handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
+logging.getLogger().addHandler(otel_handler)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+logging.getLogger().addHandler(console_handler)
+
+logging.getLogger().setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -59,7 +117,7 @@ async def new_content_webhook(
             response.raise_for_status()
             thumbnail_data = response.content
 
-        print(f"Downloaded video: {len(video_data)} bytes")
+        logging.info(f"Downloaded video: {len(video_data)} bytes")
 
         video_s3_key = (
             f"videos/{content.id}_{datetime.now(timezone.utc).isoformat()}.mp4"
@@ -75,7 +133,7 @@ async def new_content_webhook(
             AWS_REGION, S3_BUCKET_NAME, quote_plus(video_s3_key)
         )
 
-        print(f"Uploaded video to S3: {video_s3_key}")
+        logging.info(f"Uploaded video to S3: {video_s3_key}")
 
         thumbnail_s3_key = (
             f"thumb/{content.id}_{datetime.now(timezone.utc).isoformat()}.jpg"
@@ -92,7 +150,7 @@ async def new_content_webhook(
             AWS_REGION, S3_BUCKET_NAME, quote_plus(thumbnail_s3_key)
         )
 
-        print(f"Uploaded thumbnail to S3: {thumbnail_s3_key}")
+        logging.info(f"Uploaded thumbnail to S3: {thumbnail_s3_key}")
 
         sent_time_dt = datetime.fromisoformat(
             content.sent_time.replace("Z", "+00:00")
@@ -109,7 +167,7 @@ async def new_content_webhook(
             feed_type="main",
         )
         video_item.save()
-        print(f"Saved video metadata to DynamoDB: {content.id}")
+        logging.info(f"Saved video metadata to DynamoDB: {content.id}")
 
         return Response(status_code=status.HTTP_200_OK)
 
@@ -161,3 +219,6 @@ async def get_video_feed(
         raise HTTPException(
             status_code=500, detail=f"Error fetching video feed: {str(e)}"
         )
+
+
+FastAPIInstrumentor.instrument_app(app)

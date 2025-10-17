@@ -12,3 +12,7 @@ FEED_URL=
 
 # Secret key added to Zapier requests for additional security
 ZAPIER_SECRET_KEY=
+
+export OTEL_DEPLOYMENT_ENVIRONMENT=""
+export OTEL_EXPORTER_OTLP_ENDPOINT=""
+export GRAFANA_LABS_TOKEN=""

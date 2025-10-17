@@ -81,11 +81,14 @@ resource "aws_lambda_function" "san_vertical_content_alf" {
   memory_size = 2048
   environment {
     variables = {
-      REGION_AWS        = var.aws_region
-      VIDEOS_TABLE_NAME = aws_dynamodb_table.san_vertical_content_feed_adt.name
-      S3_BUCKET_NAME    = aws_s3_bucket.san_vertical_content_feed_asb.id
-      FEED_URL          = var.feed_url
-      ZAPIER_SECRET_KEY = var.zapier_secret_key
+      REGION_AWS                  = var.aws_region
+      VIDEOS_TABLE_NAME           = aws_dynamodb_table.san_vertical_content_feed_adt.name
+      S3_BUCKET_NAME              = aws_s3_bucket.san_vertical_content_feed_asb.id
+      FEED_URL                    = var.feed_url
+      ZAPIER_SECRET_KEY           = var.zapier_secret_key
+      OTEL_DEPLOYMENT_ENVIRONMENT = var.environment
+      OTEL_EXPORTER_OTLP_ENDPOINT = var.otel_exporter_otlp_endpoint
+      GRAFANA_LABS_TOKEN          = var.grafana_labs_token
     }
   }
 

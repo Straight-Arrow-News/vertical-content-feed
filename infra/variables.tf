@@ -20,3 +20,10 @@ variable "zapier_secret_key" {
   type = string
 }
 
+variable "otel_exporter_otlp_endpoint" {
+  type = string
+}
+
+variable "grafana_labs_token" {
+  type = string
+}
